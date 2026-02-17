@@ -3,47 +3,69 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Cardiac Surgery Insulin Infusion Calculator (Proof-of-Concept WIP)</title>
+  <title>Cardiac Surgery Insulin Infusion Calculator (UMMC POC)</title>
   <style>
     :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
 
-    /* ✅ ALIGNMENT FIX: prevent padding/border from overflowing grid columns */
-    *, *::before, *::after { box-sizing: border-box; }
-
     body { margin: 0; padding: 16px; background: #f6f7f9; }
-    .card { max-width: 820px; margin: 0 auto; background: #fff; border-radius: 14px; padding: 16px; box-shadow: 0 6px 20px rgba(0,0,0,.06); }
+    .card {
+      max-width: 860px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 6px 20px rgba(0,0,0,.06);
+    }
+
     h1 { font-size: 18px; margin: 0 0 8px; }
     .sub { font-size: 12px; color: #555; margin: 0 0 14px; line-height: 1.4; }
-    label { display: block; font-size: 12px; color: #333; margin: 12px 0 6px; }
 
-    /* ✅ ALIGNMENT FIX: keep fields inside grid columns, consistent height */
+    label { display: block; font-size: 12px; color: #333; margin: 12px 0 6px; }
     input {
       width: 100%;
-      max-width: 100%;
       padding: 10px;
       border: 1px solid #d7dbe0;
       border-radius: 10px;
       font-size: 16px;
-      height: 44px;
-      line-height: 22px;
+      box-sizing: border-box;
     }
 
     .grid { display: grid; gap: 12px; grid-template-columns: 1fr; }
     @media (min-width: 640px) { .grid.two { grid-template-columns: 1fr 1fr; } }
-    .row { display:flex; gap:10px; align-items:center; margin-top:10px; }
-    .row input[type="checkbox"]{ width:auto; transform: scale(1.15); height:auto; }
 
-    button { width: 100%; margin-top: 14px; padding: 12px; border: 0; border-radius: 12px; font-size: 16px; cursor: pointer; }
+    .row { display:flex; gap:10px; align-items:center; margin-top:10px; }
+    .row input[type="checkbox"]{ width:auto; transform: scale(1.15); }
+
+    button {
+      width: 100%;
+      margin-top: 14px;
+      padding: 12px;
+      border: 0;
+      border-radius: 12px;
+      font-size: 16px;
+      cursor: pointer;
+    }
     button.primary { background: #111827; color: #fff; }
     button.ghost { background: #eef2ff; }
+
     .out { margin-top: 14px; padding: 12px; border-radius: 12px; background: #f3f4f6; }
     .out p { margin: 6px 0; }
+
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
     .small { font-size: 12px; color: #444; }
-    .warn { font-size: 12px; color: #7c2d12; background: #fff7ed; border: 1px solid #fed7aa; padding: 10px; border-radius: 12px; margin-top: 12px; }
+    .warn {
+      font-size: 12px;
+      color: #7c2d12;
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      padding: 10px;
+      border-radius: 12px;
+      margin-top: 12px;
+      line-height: 1.35;
+    }
     .pill { display:inline-block; padding:2px 8px; border-radius: 999px; background:#e5e7eb; font-size:12px; }
 
-    .danger { color:#b91c1c; font-weight:700; }
+    .danger { color:#b91c1c; font-weight: 800; }
     .dangerBox {
       margin-top: 10px;
       padding: 10px;
@@ -64,14 +86,53 @@
       font-size: 12px;
       line-height: 1.35;
     }
+
+    /* ===== Reference tables (mobile-safe) ===== */
+    .refWrap { margin-top: 18px; padding-top: 10px; border-top: 1px solid #e5e7eb; }
+    .refSummary { cursor:pointer; font-weight: 700; user-select: none; }
+    .refTitle { margin: 10px 0 6px; font-size: 14px; font-weight: 800; }
+    .refScroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .refTable {
+      width: 100%;
+      min-width: 760px;
+      border-collapse: collapse;
+      table-layout: fixed;
+      font-size: 12px;
+      background: #fff;
+    }
+    .refTable th, .refTable td {
+      border: 1px solid #d1d5db;
+      padding: 6px 8px;
+      text-align: center;
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+    .refTable thead th { background: #f3f4f6; font-weight: 800; }
+    .refTable .rowhead { font-weight: 800; background: #fafafa; text-align: left; }
+    .refNote { margin-top: 8px; font-size: 12px; color: #555; line-height: 1.35; }
+    .bullets { margin: 8px 0 0 18px; padding: 0; }
+    .bullets li { margin: 6px 0; font-size: 12px; color: #333; line-height: 1.35; }
+
+    /* NEW: make the extra header row look like a label row */
+    .refTable thead tr:first-child th {
+      background: #ffffff;
+      border: none;
+      font-weight: 700;
+      padding: 4px 8px;
+    }
+    .refTable thead tr:first-child th[colspan] {
+      text-align: center;
+      border: 1px solid #d1d5db;
+      background: #f9fafb;
+    }
   </style>
 </head>
 
 <body>
   <div class="card">
-    <h1>Cardiac Surgery Insulin Infusion Calculator (Proof-of-Concept WIP)</h1>
+    <h1>Cardiac Surgery Insulin Infusion Calculator (POC)</h1>
     <p class="sub">
-      Implements: Covers initial bolus and initiation of gtt as well of maintenance of an infusion. No data stored.
+      Proof-of-concept Insulin calculator for cardiac surgery workflow. No data stored. Currently compiling all data, so it's still incomplete verify against institutional guideline.
     </p>
 
     <div class="grid two">
@@ -81,7 +142,7 @@
       </div>
       <div>
         <label for="prev">Previous BG (mg/dL)</label>
-        <input id="prev" inputmode="numeric" placeholder="e.g., 145" />
+        <input id="prev" inputmode="numeric" placeholder="Optional but recommended for maintaining mode (e.g., 145)" />
       </div>
     </div>
 
@@ -97,21 +158,111 @@
     <button class="ghost" id="reset" type="button">Reset</button>
 
     <div class="warn">
-      Disclaimer: Decision support only.  Just a tool not meant to replace clinical judgement or decision making, please consult the policy for the most up to date and correct info :)
-      <span class="pill">Cardiac v0.2</span>
+      Disclaimer: decision support only. Not meant to replace clinical judgement and decision making, please read insitutional guidelines for current practice :)
+      <span class="pill">Cardiac v0.3</span>
     </div>
 
     <div class="out" id="out" style="display:none;"></div>
+
+    <!-- ===== Reference section (recreated visually) ===== -->
+    <div class="refWrap">
+      <details>
+        <summary class="refSummary">Show reference guideline tables (recreated)</summary>
+
+        <div class="refTitle">Initiating insulin infusion (suggested)</div>
+        <div class="refScroll">
+          <table class="refTable" aria-label="Initiation table">
+            <thead>
+              <tr>
+                <th>Blood Glucose (mg/dL)</th>
+                <th>Insulin Bolus (U)</th>
+                <th>Insulin Infusion (U/hr)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>151–170</td><td>2</td><td>6</td></tr>
+              <tr><td>171–190</td><td>3</td><td>8</td></tr>
+              <tr><td>191–210</td><td>6</td><td>8</td></tr>
+              <tr><td>211–230</td><td>8</td><td>10</td></tr>
+              <tr><td>231–250</td><td>10</td><td>10</td></tr>
+              <tr><td>251–300</td><td>12</td><td>14</td></tr>
+              <tr><td>&gt;300</td><td>15</td><td>15</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="refTitle">Maintaining insulin infusion</div>
+        <div class="refScroll">
+          <table class="refTable" aria-label="Maintaining matrix">
+            <thead>
+              <!-- NEW row: explicit previous BG label -->
+              <tr>
+                <th class="rowhead"></th>
+                <th colspan="8">Previous blood glucose level –</th>
+              </tr>
+              <tr>
+                <th class="rowhead">Current BG</th>
+                <th>&lt;100</th>
+                <th>100–140</th>
+                <th>141–180</th>
+                <th>181–200</th>
+                <th>201–250</th>
+                <th>251–300</th>
+                <th>301–400</th>
+                <th>&gt;400</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="rowhead">141–180</td>
+                <td>No change</td><td>No change</td><td>No change</td><td>No change</td>
+                <td>↓ 2 U/hr</td><td>↓ 2 U/hr</td><td>↓ 2 U/hr</td><td>↓ 2 U/hr</td>
+              </tr>
+              <tr>
+                <td class="rowhead">181–200</td>
+                <td>↑ by U/hr</td><td>↑ 0.5 U/hr</td><td>↑ 0.5 U/hr</td><td>↑ 1 U/hr</td>
+                <td>No change</td><td>↓ 2 U/hr</td><td>↓ 2 U/hr</td><td>↓ 2 U/hr</td>
+              </tr>
+              <tr>
+                <td class="rowhead">201–250</td>
+                <td>↑ 2 U/hr</td><td>↑ 2 U/hr</td><td>↑ 2 U/hr</td><td>↑ 1 U/hr</td>
+                <td>↑ 1 U/hr</td><td>↑ 1 U/hr</td><td>↑ 1 U/hr</td><td>No change</td>
+              </tr>
+              <tr>
+                <td class="rowhead">251–300</td>
+                <td>↑ 2.5 U/hr</td><td>↑ 2.5 U/hr</td><td>↑ 1.5 U/hr</td><td>↑ 1 U/hr</td>
+                <td>↑ 1 U/hr</td><td>↑ 1.5 U/hr</td><td>↑ 2 U/hr</td><td>No change</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="refTitle">For BG</div>
+        <ul class="bullets">
+          <li><span class="mono">301–400</span> – increase by <span class="mono">40%</span> or <span class="mono">3 U/hr</span> (whichever is larger)</li>
+          <li><span class="mono">&gt;400</span> – increase by <span class="mono">50%</span> or <span class="mono">4 U/hr</span> (whichever is larger)</li>
+        </ul>
+
+        <div class="refTitle">Hypoglycemia protocol</div>
+        <ul class="bullets">
+          <li><span class="mono">BG ≤ 60</span> – discontinue insulin infusion; administer <span class="mono">25–50 mL D50</span>; monitor BG <span class="mono">q30 min</span> until BG reaches <span class="mono">80</span> and remains stable for next 3 levels</li>
+          <li><span class="mono">BG 61–70</span> – discontinue insulin infusion; obtain BG <span class="mono">q1 hr</span> until BG <span class="mono">&gt;80</span> for 3 consecutive levels</li>
+        </ul>
+
+        <p class="refNote">
+          Reference display is a reconstruction for clarity. Always verify against your institution’s official guideline.
+        </p>
+      </details>
+    </div>
   </div>
 
 <script>
 (() => {
-  // Policy text shows: Current BG 181–200 and Previous BG <100 is “↑ by U/hr” (number not provided).
-  // Set this once you confirm the value in the official source.
+  // ===== policy excerpt shows missing numeric value here (Current 181–200, Previous <100) =====
+  // Your screenshot says “↑ by U/hr” without the number. Set this once confirmed.
   const MISSING_CELL_181_200_PREV_LT100 = 0.5;
 
-  // Initiating Insulin Infusion (BG ≥151)
-  // Format: [lo, hi, bolusU, infusionUhr]
+  // Initiation table: [lo, hi, bolusU, infusionUhr]
   const INIT_TABLE = [
     [151, 170,  2,  6],
     [171, 190,  3,  8],
@@ -122,7 +273,7 @@
     [301, Infinity, 15, 15]
   ];
 
-  // Previous BG bands for Maintaining matrix header
+  // Previous BG bands (columns)
   const prevBands = [
     { key: "lt100",    label: "<100",    lo: -Infinity, hi: 99 },
     { key: "100_140",  label: "100–140", lo: 100, hi: 140 },
@@ -138,8 +289,8 @@
     return prevBands.find(b => bg >= b.lo && bg <= b.hi) || null;
   }
 
-  // Maintaining Insulin Infusion matrix (141–300 rows only)
-  // Values are delta U/hr, null = No Change
+  // Maintaining matrix (rows are current BG; columns are previous BG band)
+  // Values are delta U/hr; null = No Change.
   const MATRIX = {
     "141_180": {
       lt100: null, "100_140": null, "141_180": null, "181_200": null,
@@ -187,7 +338,7 @@
     if (currBG <= 60) {
       return {
         status: "STOP",
-        action: "Discontinue insulin infusion. Administer 25–50 mL of 50% dextrose.",
+        action: "Discontinue insulin infusion. Administer 25–50 mL of 50% dextrose (D50).",
         monitoring: "Monitor BG q30 min until BG reaches 80 mg/dL and remains stable for the next 3 levels."
       };
     }
@@ -218,6 +369,7 @@
   }
 
   function trend(prev, curr) {
+    if (prev == null) return "";
     const d = curr - prev;
     if (d > 0) return `↑ (+${d})`;
     if (d < 0) return `↓ (${d})`;
@@ -230,16 +382,17 @@
     out.innerHTML = html;
   }
 
-  const MONITORING_STD = "Check BG at minimum every 30–60 minutes once insulin infusion has started; consider q15 min for rapidly fluctuating levels.";
+  const MONITORING_STD =
+    "Monitoring: check BG at minimum every 30–60 min once infusion started; consider q15 min for rapidly fluctuating levels.";
 
   document.getElementById("calc").addEventListener("click", () => {
     const currentRate = num(document.getElementById("rate").value);
-    const prevBG = num(document.getElementById("prev").value);
+    const prevBG = num(document.getElementById("prev").value);   // optional until maintaining
     const currBG = num(document.getElementById("curr").value);
     const roundHalf = document.getElementById("roundHalf").checked;
 
-    if (prevBG === null || currBG === null) {
-      show(`<p>Please enter valid numbers for previous and current BG.</p>`);
+    if (currBG === null) {
+      show(`<p>Please enter a valid number for current BG.</p>`);
       return;
     }
     if (currentRate !== null && currentRate < 0) {
@@ -251,21 +404,28 @@
     const hypo = hypoglycemia(currBG);
     if (hypo) {
       show(`
-        <p><span class="small">Inputs:</span> <span class="mono">${prevBG} → ${currBG} mg/dL</span> <span class="mono">${trend(prevBG, currBG)}</span></p>
+        <p><span class="small">Inputs:</span>
+          <span class="mono">${prevBG ?? "—"} → ${currBG} mg/dL</span>
+          <span class="mono">${trend(prevBG, currBG)}</span>
+        </p>
         <p><span class="small">Insulin Gtt Status:</span> <span class="mono">${hypo.status}</span></p>
         <p><span class="small">Action:</span> <span class="mono">${hypo.action}</span></p>
         <p><span class="small">Monitoring:</span> <span class="mono">${hypo.monitoring}</span></p>
+        <div class="noteBox">${MONITORING_STD}</div>
       `);
       return;
     }
 
-    // If insulin not started yet (no current rate) -> Initiation mode
+    // Initiation mode if no current rate
     if (currentRate === null) {
       if (currBG < 151) {
         show(`
-          <p><span class="small">Inputs:</span> <span class="mono">${prevBG} → ${currBG} mg/dL</span> <span class="mono">${trend(prevBG, currBG)}</span></p>
+          <p><span class="small">Inputs:</span>
+            <span class="mono">${prevBG ?? "—"} → ${currBG} mg/dL</span>
+            <span class="mono">${trend(prevBG, currBG)}</span>
+          </p>
           <p><span class="small">Mode:</span> <span class="mono">INITIATION</span></p>
-          <p><span class="small">Result:</span> <span class="mono">No initiation table provided in the excerpt for BG &lt;151.</span></p>
+          <p><span class="small">Result:</span> <span class="mono">Initiation table starts at BG ≥151 in this excerpt. For BG &lt;151, follow your full guideline.</span></p>
           <div class="noteBox">${MONITORING_STD}</div>
         `);
         return;
@@ -278,12 +438,24 @@
       }
 
       show(`
-        <p><span class="small">Inputs:</span> <span class="mono">${prevBG} → ${currBG} mg/dL</span> <span class="mono">${trend(prevBG, currBG)}</span></p>
+        <p><span class="small">Inputs:</span>
+          <span class="mono">${prevBG ?? "—"} → ${currBG} mg/dL</span>
+          <span class="mono">${trend(prevBG, currBG)}</span>
+        </p>
         <p><span class="small">Mode:</span> <span class="mono">INITIATION</span></p>
         <p><span class="small">Suggested bolus:</span> <span class="mono">${init.bolus} U</span></p>
         <p><span class="small">Suggested infusion start:</span> <span class="mono">${init.infusion} U/hr</span></p>
         <div class="noteBox">${MONITORING_STD}</div>
-        <p class="small">Policy note: bolus/infusion may be adjusted by attending physician discretion; avoid bolus in insulin-naïve patients per guidance.</p>
+        <p class="small">Note: initiation dosing is “suggested”; attending discretion applies. Avoid bolus in insulin-naïve patients per guidance.</p>
+      `);
+      return;
+    }
+
+    // Maintaining mode needs previous BG for the matrix
+    if (prevBG === null) {
+      show(`
+        <p>Please enter <strong>Previous BG</strong> to use the maintaining infusion algorithm.</p>
+        <div class="noteBox">${MONITORING_STD}</div>
       `);
       return;
     }
@@ -300,7 +472,11 @@
       if (newRate < 0) newRate = 0;
 
       show(`
-        <p><span class="small">Inputs:</span> <span class="mono">${prevBG} → ${currBG} mg/dL</span> <span class="mono">${trend(prevBG, currBG)}</span> <span class="mono">Rate ${currentRate} U/hr</span></p>
+        <p><span class="small">Inputs:</span>
+          <span class="mono">${prevBG} → ${currBG} mg/dL</span>
+          <span class="mono">${trend(prevBG, currBG)}</span>
+          <span class="mono">Rate ${currentRate} U/hr</span>
+        </p>
         <p><span class="small">Mode:</span> <span class="mono">MAINTAINING</span></p>
         <p><span class="small">Rule applied:</span> <span class="mono">${hi.rule}</span></p>
         <p><span class="small">Adjustment:</span> <span class="mono">+${hi.delta.toFixed(2)} U/hr</span></p>
@@ -314,10 +490,13 @@
     const rowKey = currentRowKey(currBG);
     if (!rowKey) {
       show(`
-        <p><span class="small">Inputs:</span> <span class="mono">${prevBG} → ${currBG} mg/dL</span> <span class="mono">${trend(prevBG, currBG)}</span> <span class="mono">Rate ${currentRate} U/hr</span></p>
+        <p><span class="small">Inputs:</span>
+          <span class="mono">${prevBG} → ${currBG} mg/dL</span>
+          <span class="mono">${trend(prevBG, currBG)}</span>
+          <span class="mono">Rate ${currentRate} U/hr</span>
+        </p>
         <p><span class="small">Mode:</span> <span class="mono">MAINTAINING</span></p>
-        <p><span class="small">Result:</span> <span class="mono">Current BG not covered by maintaining table will need to follow up.</span></p>
-        <p class="small">This calculator intentionally avoids guessing for BG 71–140 until the full policy is seen/found :(.</p>
+        <p><span class="small">Result:</span> <span class="mono">Current BG is not covered by the 141–300 reference table, will need to f/u on actual guideline/practice.</span></p>
         <div class="noteBox">${MONITORING_STD}</div>
       `);
       return;
@@ -335,7 +514,7 @@
     let newRate = currentRate;
 
     if (delta === null) {
-      actionText = "No Change";
+      actionText = "No change";
     } else {
       newRate = currentRate + delta;
       actionText = (delta >= 0) ? `Increase by ${delta} U/hr` : `Decrease by ${Math.abs(delta)} U/hr`;
@@ -358,6 +537,7 @@
         <span class="mono">Curr ${currBG} (${rowKey.replace("_","–")})</span>,
         <span class="mono">Rate ${currentRate} U/hr</span>
       </p>
+      <p><span class="small">Insulin Gtt Status:</span> <span class="mono">RUN</span></p>
       <p><span class="small">Mode:</span> <span class="mono">MAINTAINING</span></p>
       <p><span class="small">Action:</span> <span class="mono">${actionText}</span></p>
       <p><span class="small">New rate:</span> <span class="mono">${newRate} U/hr</span></p>
@@ -377,5 +557,6 @@
   });
 })();
 </script>
+
 </body>
 </html>
