@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Cardiac Surgery Insulin Infusion Calculator (Proof-of-Concept WIP)</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+
+    /* ✅ ALIGNMENT FIX: prevent padding/border from overflowing grid columns */
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body { margin: 0; padding: 16px; background: #f6f7f9; }
+    .card { max-width: 820px; margin: 0 auto; background: #fff; border-radius: 14px; padding: 16px; box-shadow: 0 6px 20px rgba(0,0,0,.06); }
+    h1 { font-size: 18px; margin: 0 0 8px; }
+    .sub { font-size: 12px; color: #555; margin: 0 0 14px; line-height: 1.4; }
+    label { display: block; font-size: 12px; color: #333; margin: 12px 0 6px; }
+
+    /* ✅ ALIGNMENT FIX: keep fields inside grid columns, consistent height */
+    input {
+      width: 100%;
+      max-width: 100%;
+      padding: 10px;
+      border: 1px solid #d7dbe0;
+      border-radius: 10px;
+      font-size: 16px;
+      height: 44px;
+      line-height: 22px;
+    }
+
+    .grid { display: grid; gap: 12px; grid-template-columns: 1fr; }
+    @media (min-width: 640px) { .grid.two { grid-template-columns: 1fr 1fr; } }
+    .row { display:flex; gap:10px; align-items:center; margin-top:10px; }
+    .row input[type="checkbox"]{ width:auto; transform: scale(1.15); height:auto; }
+
+    button { width: 100%; margin-top: 14px; padding: 12px; border: 0; border-radius: 12px; font-size: 16px; cursor: pointer; }
+    button.primary { background: #111827; color: #fff; }
+    button.ghost { background: #eef2ff; }
+    .out { margin-top: 14px; padding: 12px; border-radius: 12px; background: #f3f4f6; }
+    .out p { margin: 6px 0; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+    .small { font-size: 12px; color: #444; }
+    .warn { font-size: 12px; color: #7c2d12; background: #fff7ed; border: 1px solid #fed7aa; padding: 10px; border-radius: 12px; margin-top: 12px; }
+    .pill { display:inline-block; padding:2px 8px; border-radius: 999px; background:#e5e7eb; font-size:12px; }
+
+    .danger { color:#b91c1c; font-weight:700; }
+    .dangerBox {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 12px;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color:#7f1d1d;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    .noteBox {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 12px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color:#1e3a8a;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="card">
+    <h1>Cardiac Surgery Insulin Infusion Calculator (Proof-of-Concept WIP)</h1>
+    <p class="sub">
+      Implements: Covers initial bolus and initiation of gtt as well of maintenance of an infusion. No data stored.
+    </p>
+
+    <div class="grid two">
+      <div>
+        <label for="rate">Current infusion rate (U/hr)</label>
+        <input id="rate" inputmode="decimal" placeholder="Leave blank if not started yet (initiation mode)" />
+      </div>
+      <div>
+        <label for="prev">Previous BG (mg/dL)</label>
+        <input id="prev" inputmode="numeric" placeholder="e.g., 145" />
+      </div>
+    </div>
+
+    <label for="curr">Current BG (mg/dL)</label>
+    <input id="curr" inputmode="numeric" placeholder="e.g., 210" />
+
+    <div class="row">
+      <input id="roundHalf" type="checkbox" checked />
+      <label for="roundHalf" style="margin:0;">Round new rate to nearest 0.5 U/hr</label>
+    </div>
+
+    <button class="primary" id="calc" type="button">Calculate</button>
+    <button class="ghost" id="reset" type="button">Reset</button>
+
+    <div class="warn">
+      Disclaimer: Decision support only.  Just a tool not meant to replace clinical judgement or decision making, please consult the policy for the most up to date and correct info :)
+      <span class="pill">Cardiac v0.2</span>
+    </div>
+
+    <div class="out" id="out" style="display:none;"></div>
+  </div>
+
+<script>
+(() => {
+  // Policy text shows: Current BG 181–200 and Previous BG <100 is “↑ by U/hr” (number not provided).
+  // Set this once you confirm the value in the official source.
+  const MISSING_CELL_181_200_PREV_LT100 = 0.5;
+
+  // Initiating Insulin Infusion (BG ≥151)
+  // Format: [lo, hi, bolusU, infusionUhr]
+  const INIT_TABLE = [
+    [151, 170,  2,  6],
+    [171, 190,  3,  8],
+    [191, 210,  6,  8],
+    [211, 230,  8, 10],
+    [231, 250, 10, 10],
+    [251, 300, 12, 14],
+    [301, Infinity, 15, 15]
+  ];
+
+  // Previous BG bands for Maintaining matrix header
+  const prevBands = [
+    { key: "lt100",    label: "<100",    lo: -Infinity, hi: 99 },
+    { key: "100_140",  label: "100–140", lo: 100, hi: 140 },
+    { key: "141_180",  label: "141–180", lo: 141, hi: 180 },
+    { key: "181_200",  label: "181–200", lo: 181, hi: 200 },
+    { key: "201_250",  label: "201–250", lo: 201, hi: 250 },
+    { key: "251_300",  label: "251–300", lo: 251, hi: 300 },
+    { key: "301_400",  label: "301–400", lo: 301, hi: 400 },
+    { key: "gt400",    label: ">400",    lo: 401, hi: Infinity },
+  ];
+
+  function bandForBG(bg) {
+    return prevBands.find(b => bg >= b.lo && bg <= b.hi) || null;
+  }
+
+  // Maintaining Insulin Infusion matrix (141–300 rows only)
+  // Values are delta U/hr, null = No Change
+  const MATRIX = {
+    "141_180": {
+      lt100: null, "100_140": null, "141_180": null, "181_200": null,
+      "201_250": -2, "251_300": -2, "301_400": -2, gt400: -2
+    },
+    "181_200": {
+      lt100: +MISSING_CELL_181_200_PREV_LT100,
+      "100_140": +0.5, "141_180": +0.5, "181_200": +1,
+      "201_250": null, "251_300": -2, "301_400": -2, gt400: -2
+    },
+    "201_250": {
+      lt100: +2, "100_140": +2, "141_180": +2, "181_200": +1,
+      "201_250": +1, "251_300": +1, "301_400": +1, gt400: null
+    },
+    "251_300": {
+      lt100: +2.5, "100_140": +2.5, "141_180": +1.5, "181_200": +1,
+      "201_250": +1, "251_300": +1.5, "301_400": +2, gt400: null
+    }
+  };
+
+  function currentRowKey(currBG) {
+    if (currBG >= 141 && currBG <= 180) return "141_180";
+    if (currBG >= 181 && currBG <= 200) return "181_200";
+    if (currBG >= 201 && currBG <= 250) return "201_250";
+    if (currBG >= 251 && currBG <= 300) return "251_300";
+    return null;
+  }
+
+  // 301–400: increase by 40% or 3 U/hr (whichever larger)
+  // >400: increase by 50% or 4 U/hr (whichever larger)
+  function highBGRule(currBG, currentRate) {
+    if (currentRate == null) return null;
+    if (currBG >= 301 && currBG <= 400) {
+      const inc = Math.max(currentRate * 0.40, 3);
+      return { delta: inc, rule: "301–400: increase by 40% or 3 U/hr (whichever is larger)" };
+    }
+    if (currBG > 400) {
+      const inc = Math.max(currentRate * 0.50, 4);
+      return { delta: inc, rule: ">400: increase by 50% or 4 U/hr (whichever is larger)" };
+    }
+    return null;
+  }
+
+  function hypoglycemia(currBG) {
+    if (currBG <= 60) {
+      return {
+        status: "STOP",
+        action: "Discontinue insulin infusion. Administer 25–50 mL of 50% dextrose.",
+        monitoring: "Monitor BG q30 min until BG reaches 80 mg/dL and remains stable for the next 3 levels."
+      };
+    }
+    if (currBG >= 61 && currBG <= 70) {
+      return {
+        status: "STOP",
+        action: "Discontinue insulin infusion.",
+        monitoring: "Obtain BG q1 hr until BG >80 mg/dL for 3 consecutive levels."
+      };
+    }
+    return null;
+  }
+
+  function initForBG(currBG) {
+    for (const [lo, hi, bolus, infusion] of INIT_TABLE) {
+      if (currBG >= lo && currBG <= hi) return { lo, hi, bolus, infusion };
+    }
+    return null;
+  }
+
+  function roundToHalf(x) { return Math.round(x * 2) / 2; }
+
+  function num(v) {
+    const s = String(v).trim();
+    if (s === "") return null;
+    const n = Number(s);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function trend(prev, curr) {
+    const d = curr - prev;
+    if (d > 0) return `↑ (+${d})`;
+    if (d < 0) return `↓ (${d})`;
+    return `→ (0)`;
+  }
+
+  function show(html) {
+    const out = document.getElementById("out");
+    out.style.display = "block";
+    out.innerHTML = html;
+  }
+
+  const MONITORING_STD = "Check BG at minimum every 30–60 minutes once insulin infusion has started; consider q15 min for rapidly fluctuating levels.";
+
+  document.getElementById("calc").addEventListener("click", () => {
+    const currentRate = num(document.getElementById("rate").value);
+    const prevBG = num(document.getElementById("prev").value);
+    const currBG = num(document.getElementById("curr").value);
+    const roundHalf = document.getElementById("roundHalf").checked;
+
+    if (prevBG === null || currBG === null) {
+      show(`<p>Please enter valid numbers for previous and current BG.</p>`);
+      return;
+    }
+    if (currentRate !== null && currentRate < 0) {
+      show(`<p>Current infusion rate must be ≥ 0.</p>`);
+      return;
+    }
+
+    // Hypoglycemia protocol
+    const hypo = hypoglycemia(currBG);
+    if (hypo) {
+      show(`
+        <p><span class="small">Inputs:</span> <span class="mono">${prevBG} → ${currBG} mg/dL</span> <span class="mono">${trend(prevBG, currBG)}</span></p>
+        <p><span class="small">Insulin Gtt Status:</span> <span class="mono">${hypo.status}</span></p>
+        <p><span class="small">Action:</span> <span class="mono">${hypo.action}</span></p>
+        <p><span class="small">Monitoring:</span> <span class="mono">${hypo.monitoring}</span></p>
+      `);
+      return;
+    }
+
+    // If insulin not started yet (no current rate) -> Initiation mode
+    if (currentRate === null) {
+      if (currBG < 151) {
+        show(`
+          <p><span class="small">Inputs:</span> <span class="mono">${prevBG} → ${currBG} mg/dL</span> <span class="mono">${trend(prevBG, currBG)}</span></p>
+          <p><span class="small">Mode:</span> <span class="mono">INITIATION</span></p>
+          <p><span class="small">Result:</span> <span class="mono">No initiation table provided in the excerpt for BG &lt;151.</span></p>
+          <div class="noteBox">${MONITORING_STD}</div>
+        `);
+        return;
+      }
+
+      const init = initForBG(currBG);
+      if (!init) {
+        show(`<p>Unable to apply initiation table. Verify inputs.</p>`);
+        return;
+      }
+
+      show(`
+        <p><span class="small">Inputs:</span> <span class="mono">${prevBG} → ${currBG} mg/dL</span> <span class="mono">${trend(prevBG, currBG)}</span></p>
+        <p><span class="small">Mode:</span> <span class="mono">INITIATION</span></p>
+        <p><span class="small">Suggested bolus:</span> <span class="mono">${init.bolus} U</span></p>
+        <p><span class="small">Suggested infusion start:</span> <span class="mono">${init.infusion} U/hr</span></p>
+        <div class="noteBox">${MONITORING_STD}</div>
+        <p class="small">Policy note: bolus/infusion may be adjusted by attending physician discretion; avoid bolus in insulin-naïve patients per guidance.</p>
+      `);
+      return;
+    }
+
+    // High BG percent rules
+    if (currBG >= 301) {
+      const hi = highBGRule(currBG, currentRate);
+      if (!hi) {
+        show(`<p>Unable to apply high BG rule. Verify inputs.</p>`);
+        return;
+      }
+      let newRate = currentRate + hi.delta;
+      if (roundHalf) newRate = roundToHalf(newRate);
+      if (newRate < 0) newRate = 0;
+
+      show(`
+        <p><span class="small">Inputs:</span> <span class="mono">${prevBG} → ${currBG} mg/dL</span> <span class="mono">${trend(prevBG, currBG)}</span> <span class="mono">Rate ${currentRate} U/hr</span></p>
+        <p><span class="small">Mode:</span> <span class="mono">MAINTAINING</span></p>
+        <p><span class="small">Rule applied:</span> <span class="mono">${hi.rule}</span></p>
+        <p><span class="small">Adjustment:</span> <span class="mono">+${hi.delta.toFixed(2)} U/hr</span></p>
+        <p><span class="small">New rate:</span> <span class="mono">${newRate} U/hr</span></p>
+        <div class="noteBox">${MONITORING_STD}</div>
+      `);
+      return;
+    }
+
+    // Maintaining matrix for 141–300
+    const rowKey = currentRowKey(currBG);
+    if (!rowKey) {
+      show(`
+        <p><span class="small">Inputs:</span> <span class="mono">${prevBG} → ${currBG} mg/dL</span> <span class="mono">${trend(prevBG, currBG)}</span> <span class="mono">Rate ${currentRate} U/hr</span></p>
+        <p><span class="small">Mode:</span> <span class="mono">MAINTAINING</span></p>
+        <p><span class="small">Result:</span> <span class="mono">Current BG not covered by maintaining table will need to follow up.</span></p>
+        <p class="small">This calculator intentionally avoids guessing for BG 71–140 until the full policy is seen/found :(.</p>
+        <div class="noteBox">${MONITORING_STD}</div>
+      `);
+      return;
+    }
+
+    const prevBand = bandForBG(prevBG);
+    if (!prevBand) {
+      show(`<p>Unable to classify previous BG into a table band. Verify inputs.</p>`);
+      return;
+    }
+
+    const delta = MATRIX[rowKey][prevBand.key];
+
+    let actionText = "";
+    let newRate = currentRate;
+
+    if (delta === null) {
+      actionText = "No Change";
+    } else {
+      newRate = currentRate + delta;
+      actionText = (delta >= 0) ? `Increase by ${delta} U/hr` : `Decrease by ${Math.abs(delta)} U/hr`;
+    }
+
+    if (roundHalf) newRate = roundToHalf(newRate);
+    if (newRate < 0) newRate = 0;
+
+    const missingCellNote =
+      (rowKey === "181_200" && prevBand.key === "lt100")
+        ? `<div class="dangerBox"><div class="danger">MISSING POLICY VALUE</div>
+           Policy excerpt shows “↑ by U/hr” (number not provided) for Current 181–200 with Previous &lt;100.
+           This tool is currently using <span class="mono">${MISSING_CELL_181_200_PREV_LT100} U/hr</span>.
+           Update <span class="mono">MISSING_CELL_181_200_PREV_LT100</span> once confirmed.</div>`
+        : "";
+
+    show(`
+      <p><span class="small">Inputs:</span>
+        <span class="mono">Prev ${prevBG} (${prevBand.label})</span>,
+        <span class="mono">Curr ${currBG} (${rowKey.replace("_","–")})</span>,
+        <span class="mono">Rate ${currentRate} U/hr</span>
+      </p>
+      <p><span class="small">Mode:</span> <span class="mono">MAINTAINING</span></p>
+      <p><span class="small">Action:</span> <span class="mono">${actionText}</span></p>
+      <p><span class="small">New rate:</span> <span class="mono">${newRate} U/hr</span></p>
+      ${missingCellNote}
+      <div class="noteBox">${MONITORING_STD}</div>
+    `);
+  });
+
+  document.getElementById("reset").addEventListener("click", () => {
+    document.getElementById("rate").value = "";
+    document.getElementById("prev").value = "";
+    document.getElementById("curr").value = "";
+    document.getElementById("roundHalf").checked = true;
+    const out = document.getElementById("out");
+    out.style.display = "none";
+    out.innerHTML = "";
+  });
+})();
+</script>
+</body>
+</html>
